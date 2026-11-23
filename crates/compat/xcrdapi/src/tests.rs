@@ -45,6 +45,14 @@ fn factory() -> *mut c_void {
     f
 }
 
+#[test]
+fn newer_factory_iid_returns_the_same_factory() {
+    let mut f: *mut c_void = core::ptr::null_mut();
+    assert_eq!(unsafe { DStorageGetFactory(IID_FACTORY_X_V2.as_ptr() as *const c_void, &mut f) }, S_OK);
+    assert_eq!(f, factory());
+    assert_ne!(IID_FACTORY_X_V2.as_ptr(), IID_FACTORY_X.as_ptr());
+}
+
 unsafe fn create_queue(f: *mut c_void, source_type: u32, cap: u16, prio: i8) -> (i32, *mut c_void) {
     let mut d = [0u8; XQUEUE_DESC_SIZE];
     d[0..4].copy_from_slice(&source_type.to_le_bytes());

@@ -185,7 +185,7 @@ unsafe extern "system" fn factory_qi(this: *mut c_void, riid: *const c_void, ppv
     }
     unsafe { *ppv = core::ptr::null_mut() };
     match unsafe { read_iid(riid) } {
-        Some(i) if i == IID_FACTORY_X || i == IID_IUNKNOWN => {
+        Some(i) if i == IID_FACTORY_X || i == IID_FACTORY_X_V2 || i == IID_IUNKNOWN => {
             unsafe { qi_out(ppv, this) };
             S_OK
         }

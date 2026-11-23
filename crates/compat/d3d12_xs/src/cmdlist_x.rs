@@ -8,7 +8,9 @@ use crate::device_wrap::Guid;
 
 pub const IID_XBOX_GRAPHICS_COMMAND_LIST5: Guid =
     Guid { d1: 0x5505_0859, d2: 0x4024, d3: 0x474c, d4: [0x98, 0xcf, 0x64, 0x5b, 0x51, 0xdc, 0x48, 0x74] };
-const IID_PC_GRAPHICS_COMMAND_LIST5: Guid =
+pub const IID_XBOX_GRAPHICS_COMMAND_LIST_BASE: Guid =
+    Guid { d1: 0xc382_7890, d2: 0x4024, d3: 0x474c, d4: [0x98, 0xcf, 0x64, 0x5b, 0x51, 0xdc, 0x48, 0x74] };
+pub const IID_PC_GRAPHICS_COMMAND_LIST5: Guid =
     Guid { d1: 0x5505_0859, d2: 0x4024, d3: 0x474c, d4: [0x87, 0xf5, 0x64, 0x72, 0xea, 0xee, 0x44, 0xea] };
 const IID_DEVICE: Guid =
     Guid { d1: 0x1898_19F1, d2: 0x1DB6, d3: 0x4B57, d4: [0xBE, 0x54, 0x18, 0x21, 0x33, 0x9B, 0x85, 0xF7] };
@@ -269,6 +271,14 @@ mod tests {
     fn xbox_list5_iid_differs_from_pc() {
         assert!(IID_XBOX_GRAPHICS_COMMAND_LIST5 != IID_PC_GRAPHICS_COMMAND_LIST5);
         assert_eq!(IID_XBOX_GRAPHICS_COMMAND_LIST5.d1, IID_PC_GRAPHICS_COMMAND_LIST5.d1);
+    }
+
+    #[test]
+    fn xbox_base_list_iid_is_a_newer_sibling() {
+        assert_ne!(IID_XBOX_GRAPHICS_COMMAND_LIST_BASE, IID_XBOX_GRAPHICS_COMMAND_LIST5);
+        assert_eq!(IID_XBOX_GRAPHICS_COMMAND_LIST_BASE.d2, IID_XBOX_GRAPHICS_COMMAND_LIST5.d2);
+        assert_eq!(IID_XBOX_GRAPHICS_COMMAND_LIST_BASE.d3, IID_XBOX_GRAPHICS_COMMAND_LIST5.d3);
+        assert_eq!(IID_XBOX_GRAPHICS_COMMAND_LIST_BASE.d4, IID_XBOX_GRAPHICS_COMMAND_LIST5.d4);
     }
 
     #[test]

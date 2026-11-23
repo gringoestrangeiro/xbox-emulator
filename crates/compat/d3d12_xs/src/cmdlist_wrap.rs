@@ -30,7 +30,7 @@ const PAGE_READWRITE: u32 = 0x04;
 
 /// Number of Xbox vtable slots we materialize. Max observed call is Xbox slot 50
 /// (OMSetRenderTargets); 128 leaves generous headroom.
-const N: usize = 128;
+const N: usize = 256;
 static XBOX_VT: [AtomicUsize; N] = [const { AtomicUsize::new(0) }; N];
 static BUILT: AtomicBool = AtomicBool::new(false);
 static mut REAL_VT_PTR: *const usize = core::ptr::null();
@@ -381,6 +381,11 @@ mod tests {
         for i in 0..=59 { assert!(seen.insert(map_slot(i).unwrap())); }
         assert_eq!(seen.len(), 60);
         assert!((0..60).all(|p| seen.contains(&p)));
+    }
+
+    #[test]
+    fn high_slots_are_covered() {
+        assert!(super::N > 132);
     }
 }
 

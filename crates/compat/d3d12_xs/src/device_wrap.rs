@@ -265,7 +265,14 @@ unsafe extern "system" fn create_command_list_x(
     let f: unsafe extern "system" fn(*mut c_void, u32, u32, *mut c_void, *mut c_void, *const Guid, *mut *mut c_void) -> i32 =
         unsafe { core::mem::transmute(*real_vtbl(real).add(12)) };
     let dma = !riid.is_null() && unsafe { *riid == crate::dma_list::IID_XBOX_DMA_COMMAND_LIST };
-    let pc_riid = if dma { &crate::dma_list::IID_GRAPHICS_COMMAND_LIST as *const Guid } else { riid };
+    let base = !riid.is_null() && unsafe { *riid == crate::cmdlist_x::IID_XBOX_GRAPHICS_COMMAND_LIST_BASE };
+    let pc_riid = if dma {
+        &crate::dma_list::IID_GRAPHICS_COMMAND_LIST as *const Guid
+    } else if base {
+        &crate::cmdlist_x::IID_PC_GRAPHICS_COMMAND_LIST5 as *const Guid
+    } else {
+        riid
+    };
     let hr = unsafe { f(real, node_mask, list_type, alloc, init_state, pc_riid, ppv) };
     if hr == S_OK && !ppv.is_null() {
         // Hand the title a shim object (Xbox vtable layout + inert inline-buffer fields)

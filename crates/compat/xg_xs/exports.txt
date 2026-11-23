@@ -21,3 +21,4 @@
 21 XGTerminateLibrary implemented
 22 XGValidateDepthStencilSwizzleMode implemented
 23 XGValidateDescriptor implemented
+24 XGSuggestSwizzleMode pending | fills D3D12_RESOURCE_DESC.Layout with 0x100+swizzle mode for the desc (GTA VI passes the desc in RCX, 0 in RDX and &desc->Layout in R8; its own fallback writes 0x100+mode); reuses XGComputeOptimalSwizzleMode rules; awaiting a console xg_xs.dll that exports it

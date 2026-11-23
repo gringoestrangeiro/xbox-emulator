@@ -159,6 +159,49 @@ fn blocks_symlink_entry() {
 }
 
 #[test]
+fn blocks_duplicate_entries() {
+    let inv = inspect(
+        &assemble(&[
+            cd_header("Game/Content/pakchunk0.pak", 1, 1, 0, 0, &[]),
+            cd_header("game/content/PAKCHUNK0.PAK", 1, 1, 0, 0, &[]),
+        ]),
+        "duplicate",
+    );
+    let r = validate(&inv, 1000.0);
+    assert!(!r.is_safe_to_extract());
+    assert!(r.findings.iter().any(|f| f.issue.contains("collides")));
+}
+
+#[test]
+fn blocks_file_and_directory_with_the_same_name() {
+    let inv = inspect(
+        &assemble(&[
+            cd_header("Game/Content", 1, 1, 0, 0, &[]),
+            cd_header("game/content/", 0, 0, 0, 0, &[]),
+        ]),
+        "duplicate-file-dir",
+    );
+    let r = validate(&inv, 1000.0);
+    assert!(!r.is_safe_to_extract());
+    assert!(r.findings.iter().any(|f| f.issue.contains("collides")));
+}
+
+#[test]
+fn allows_distinct_names_and_repeated_directories() {
+    let inv = inspect(
+        &assemble(&[
+            cd_header("Game/Content/a.pak", 1, 1, 0, 0, &[]),
+            cd_header("Game/Content/b.pak", 1, 1, 0, 0, &[]),
+            cd_header("Game/", 0, 0, 0, 0, &[]),
+            cd_header("game/", 0, 0, 0, 0, &[]),
+        ]),
+        "distinct",
+    );
+    let r = validate(&inv, 1000.0);
+    assert!(r.is_safe_to_extract());
+}
+
+#[test]
 fn warns_on_bomb_ratio() {
     // 20 MiB uncompressed from 1000 bytes => ratio 20971x, over threshold.
     let h = cd_header("bomb.bin", 1000, 20 * 1024 * 1024, 0, 0, &[]);

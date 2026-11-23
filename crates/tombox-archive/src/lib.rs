@@ -7,6 +7,7 @@
 //! traversal, absolute paths, drive letters, symlinks, and decompression-bomb
 //! ratios *before* any extraction happens.
 
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
@@ -378,6 +379,7 @@ impl SafetyReport {
 /// flags likely decompression bombs (uncompressed/compressed per entry).
 pub fn validate(inv: &ZipInventory, ratio_threshold: f64) -> SafetyReport {
     let mut r = SafetyReport::default();
+    let mut seen: BTreeMap<String, (String, bool)> = BTreeMap::new();
     for e in &inv.entries {
         if e.is_dir {
             r.dir_count += 1;
@@ -390,6 +392,20 @@ pub fn validate(inv: &ZipInventory, ratio_threshold: f64) -> SafetyReport {
         let name = &e.name;
         // Normalise separators for checks.
         let norm = name.replace('\\', "/");
+        let key = norm.trim_end_matches('/').to_lowercase();
+        if !key.is_empty() {
+            if let Some((previous, previous_is_dir)) = seen.insert(key, (name.clone(), e.is_dir)) {
+                if !(previous_is_dir && e.is_dir) {
+                    block(
+                        &mut r,
+                        name,
+                        &format!(
+                            "entry name collides with '{previous}' on a case-insensitive file system"
+                        ),
+                    );
+                }
+            }
+        }
 
         // Absolute path / drive letter / UNC.
         if norm.starts_with('/') {

@@ -29,6 +29,16 @@ pub const XBOX_SLOT_RS_SET_SHADING_RATE_IMAGE: usize = 125;
 pub const PC_SLOT_RS_SET_SHADING_RATE: usize = 77;
 pub const PC_SLOT_RS_SET_SHADING_RATE_IMAGE: usize = 78;
 
+/// PC IID to answer for a list IID handed to `QueryInterface`. The Xbox base list
+/// maps to the PC base list: the returned object is the console-layout shim, so no
+/// VRS tier (list5) is needed to answer it.
+pub fn pc_list_iid(riid: &Guid) -> Option<&'static Guid> {
+    if *riid == IID_XBOX_GRAPHICS_COMMAND_LIST_BASE {
+        return Some(&PC_GRAPHICS_LIST_IIDS[0]);
+    }
+    PC_GRAPHICS_LIST_IIDS.iter().find(|g| **g == *riid)
+}
+
 static REAL_QI: AtomicUsize = AtomicUsize::new(0);
 static REAL_RATE: AtomicUsize = AtomicUsize::new(0);
 static REAL_RATE_IMAGE: AtomicUsize = AtomicUsize::new(0);
@@ -191,8 +201,8 @@ unsafe extern "system" fn query_interface_x(this: *mut c_void, riid: *const Guid
     if riid.is_null() || ppv.is_null() {
         return qi(this, riid, ppv);
     }
-    if PC_GRAPHICS_LIST_IIDS.iter().any(|g| *g == *riid) {
-        let hr = qi(this, riid, ppv);
+    if let Some(pc_riid) = pc_list_iid(&*riid) {
+        let hr = qi(this, pc_riid, ppv);
         if hr >= 0 && !(*ppv).is_null() {
             if let Some(shim) = shim_of(this) {
                 *ppv = shim as *mut c_void;
@@ -279,6 +289,17 @@ mod tests {
         assert_eq!(IID_XBOX_GRAPHICS_COMMAND_LIST_BASE.d2, IID_XBOX_GRAPHICS_COMMAND_LIST5.d2);
         assert_eq!(IID_XBOX_GRAPHICS_COMMAND_LIST_BASE.d3, IID_XBOX_GRAPHICS_COMMAND_LIST5.d3);
         assert_eq!(IID_XBOX_GRAPHICS_COMMAND_LIST_BASE.d4, IID_XBOX_GRAPHICS_COMMAND_LIST5.d4);
+    }
+
+    #[test]
+    fn xbox_base_list_iid_queries_the_pc_base_list() {
+        assert_eq!(pc_list_iid(&IID_XBOX_GRAPHICS_COMMAND_LIST_BASE), Some(&PC_GRAPHICS_LIST_IIDS[0]));
+        for g in &PC_GRAPHICS_LIST_IIDS {
+            assert_eq!(pc_list_iid(g), Some(g));
+        }
+        assert!(pc_list_iid(&IID_XBOX_GRAPHICS_COMMAND_LIST5).is_none());
+        assert!(pc_list_iid(&IID_PC_GRAPHICS_COMMAND_LIST5).is_none());
+        assert!(pc_list_iid(&IID_DEVICE).is_none());
     }
 
     #[test]

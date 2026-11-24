@@ -17,7 +17,7 @@ const E_POINTER: i32 = 0x8000_4003u32 as i32;
 const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 
 #[repr(C)]
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Guid {
     pub d1: u32,
     pub d2: u16,

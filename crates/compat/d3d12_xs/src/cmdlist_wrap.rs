@@ -28,8 +28,8 @@ extern "system" {
 }
 const PAGE_READWRITE: u32 = 0x04;
 
-/// Number of Xbox vtable slots we materialize. Max observed call is Xbox slot 50
-/// (OMSetRenderTargets); 128 leaves generous headroom.
+/// Number of Xbox vtable slots we materialize. Max observed call is Xbox slot 132
+/// (GTA VI 1.0.2.1, newer GDK); 256 materializes it with generous headroom.
 const N: usize = 256;
 static XBOX_VT: [AtomicUsize; N] = [const { AtomicUsize::new(0) }; N];
 static BUILT: AtomicBool = AtomicBool::new(false);
@@ -104,12 +104,12 @@ unsafe extern "system" fn inserted_stub() {
 // so we can reconstruct the true mapping. No-op avoids recording invalid GPU work.
 static EXE_BASE: AtomicUsize = AtomicUsize::new(0);
 static PROBE_HITS: AtomicUsize = AtomicUsize::new(0);
+static PROBE_PER: [AtomicUsize; N] = [const { AtomicUsize::new(0) }; N];
 
 unsafe extern "system" fn probe_impl(_this: *mut c_void, a: u64, caller: usize, slot: u64) {
     let h = PROBE_HITS.fetch_add(1, Ordering::Relaxed);
-    static PER: [AtomicUsize; 128] = [const { AtomicUsize::new(0) }; 128];
     let _ = h;
-    if PER[(slot as usize).min(127)].fetch_add(1, Ordering::Relaxed) < 4 {
+    if PROBE_PER[(slot as usize).min(N - 1)].fetch_add(1, Ordering::Relaxed) < 4 {
         let base = EXE_BASE.load(Ordering::Relaxed);
         record("d3d12_xs", "cmdlist.hi",
             &format!("slot={slot} arg1={a:#x} caller={:#x}", caller.wrapping_sub(base)));
@@ -142,6 +142,10 @@ macro_rules! make_probes {
             // The +4 shift is verified only through Xbox slot 50. Everything above is an
             // unverified/Xbox-only method: log-and-ignore until mapped from evidence
             // (e.g. slot 67 = FlushTextureCache-style flush, slot 83 = texture copy).
+            // Slots 128..=132 were added because GTA VI 1.0.2.1 calls 131/132 right
+            // after list creation; until their console semantics are established, a
+            // call there is logged as an unsupported slot instead of silently hitting
+            // the unmapped-slot stub.
             install_all_probes();
             for i in 47..=49 { XBOX_VT[i].store(*REAL_VT_PTR.add(i - 4), Ordering::Relaxed); }
             // Verified from FD3D12CommandContext::RHIClearMRTImpl call sites:
@@ -192,7 +196,7 @@ make_probes!(
     (p98,98),(p99,99),(p100,100),(p101,101),(p102,102),(p103,103),(p104,104),(p105,105),(p106,106),
     (p107,107),(p108,108),(p109,109),(p110,110),(p111,111),(p112,112),(p113,113),(p114,114),(p115,115),
     (p116,116),(p117,117),(p118,118),(p119,119),(p120,120),(p121,121),(p122,122),(p123,123),(p124,124),
-    (p125,125),(p126,126),(p127,127),
+    (p125,125),(p126,126),(p127,127),(p128,128),(p129,129),(p130,130),(p131,131),(p132,132),
 );
 
 /// ResourceBarrier (slot 26, identical on Xbox and PC) with state tracking for the
@@ -384,8 +388,15 @@ mod tests {
     }
 
     #[test]
-    fn high_slots_are_covered() {
-        assert!(super::N > 132);
+    fn observed_high_slots_have_a_logging_handler_of_their_own() {
+        unsafe { super::install_all_probes() };
+        for (slot, handler) in [(131usize, super::p131 as usize), (132, super::p132 as usize)] {
+            assert!(slot < super::N);
+            let p = super::vt_get(slot);
+            assert_eq!(p, handler, "slot {slot} must point at its own logging probe");
+            assert!(super::is_probe(p));
+            assert_ne!(p, super::inserted_stub as usize, "slot {slot} must not be the silent stub");
+        }
     }
 }
 
